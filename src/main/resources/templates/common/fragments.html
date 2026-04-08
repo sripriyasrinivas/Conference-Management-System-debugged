@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<!-- ─── NAVBAR FRAGMENT ─────────────────────────────────────── -->
+<nav th:fragment="navbar" class="navbar">
+  <div class="navbar-brand">
+    <i class="fas fa-graduation-cap"></i>
+    <span>ConferenceMS</span>
+  </div>
+  <div class="navbar-links">
+    <a th:href="@{/schedule}"><i class="fas fa-calendar"></i> Schedule</a>
+
+    <div sec:authorize="hasRole('ADMIN')" style="display: contents;">
+      <a th:href="@{/admin/dashboard}">Dashboard</a>
+      <a th:href="@{/admin/users}">Users</a>
+      <a th:href="@{/admin/reports}">Reports</a>
+    </div>
+
+    <div sec:authorize="hasRole('AUTHOR')" style="display: contents;">
+      <a th:href="@{/author/dashboard}">Dashboard</a>
+      <a th:href="@{/author/papers/submit}">Submit Paper</a>
+      <a th:href="@{/author/papers}">My Papers</a>
+    </div>
+
+    <div sec:authorize="hasRole('REVIEWER')" style="display: contents;">
+      <a th:href="@{/reviewer/dashboard}">Dashboard</a>
+      <a th:href="@{/reviewer/reviews}">My Reviews</a>
+    </div>
+
+    <div sec:authorize="hasRole('SPEAKER')" style="display: contents;">
+      <a th:href="@{/speaker/dashboard}">Dashboard</a>
+      <a th:href="@{/speaker/sessions}">My Sessions</a>
+    </div>
+
+    <div sec:authorize="hasRole('ATTENDEE')" style="display: contents;">
+      <a th:href="@{/attendee/dashboard}">Dashboard</a>
+      <a th:href="@{/attendee/conferences}">Conferences</a>
+      <a th:href="@{/attendee/schedule}">Schedule</a>
+      <a th:href="@{/attendee/feedback}">Feedback</a>
+      <a th:href="@{/attendee/profile}"><i class="fas fa-user-circle"></i> My Profile</a>
+    </div>
+
+    <th:block sec:authorize="isAuthenticated()">
+      <a th:href="@{/messages/inbox}"><i class="fas fa-envelope"></i> Messages</a>
+      <a th:href="@{/logout}" class="btn-logout">
+        <i class="fas fa-sign-out-alt"></i>
+        Logout (<span sec:authentication="name">User</span>)
+      </a>
+    </th:block>
+  </div>
+</nav>
+
+<!-- ─── ALERTS FRAGMENT ──────────────────────────────────────── -->
+<div th:fragment="alerts" class="container" style="padding-top:1rem">
+  <div th:if="${success}" class="alert alert-success">
+    <i class="fas fa-check-circle"></i> <span th:text="${success}"></span>
+  </div>
+  <div th:if="${error}" class="alert alert-error">
+    <i class="fas fa-exclamation-circle"></i> <span th:text="${error}"></span>
+  </div>
+  <div th:if="${warning}" class="alert alert-warning">
+    <i class="fas fa-exclamation-triangle"></i> <span th:text="${warning}"></span>
+  </div>
+  <div th:if="${message}" class="alert alert-info">
+    <i class="fas fa-info-circle"></i> <span th:text="${message}"></span>
+  </div>
+</div>
+
+</html>
