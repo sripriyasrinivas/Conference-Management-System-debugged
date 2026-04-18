@@ -93,6 +93,21 @@
                            class="btn btn-sm btn-secondary">
                             <i class="fas fa-edit"></i> Edit
                         </a>
+                        <!-- Facade: close conference (issues certs + marks COMPLETED) -->
+                        <form th:action="@{/admin/conferences/{id}/close(id=${conf.id})}"
+                              method="post" style="display:inline"
+                              onsubmit="return confirm('Close this conference and issue all certificates?')">
+                            <button type="submit" class="btn btn-sm btn-danger">
+                                <i class="fas fa-lock"></i> Close
+                            </button>
+                        </form>
+                        <!-- Facade: publish schedule (Builder + status update) -->
+                        <form th:action="@{/admin/conferences/{id}/publish-schedule(id=${conf.id})}"
+                              method="post" style="display:inline">
+                            <button type="submit" class="btn btn-sm btn-success">
+                                <i class="fas fa-calendar-check"></i> Publish Schedule
+                            </button>
+                        </form>
                         <form th:action="@{/admin/conferences/{id}/status(id=${conf.id})}"
                               method="post" style="display:inline-flex; gap:0.25rem; align-items:center">
                             <select name="status" class="form-control form-control-sm">
