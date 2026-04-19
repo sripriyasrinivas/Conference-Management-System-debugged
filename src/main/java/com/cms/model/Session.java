@@ -48,6 +48,12 @@ public class Session {
     @EqualsAndHashCode.Exclude
     private Paper paper;
 
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "conference_id")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private Conference conference;
+
     @ManyToMany
     @JoinTable(
         name = "session_attendees",

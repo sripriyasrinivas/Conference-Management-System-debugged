@@ -81,8 +81,8 @@ public class AttendeeController {
             return "redirect:/attendee/conferences";
         }
 
-        // Get available workshops (sessions)
-        List<Session> workshops = sessionService.findAll().stream()
+        // Get available workshops (sessions) for this conference
+        List<Session> workshops = sessionService.findByConference(conf).stream()
                 .filter(s -> s.getType() == Session.SessionType.WORKSHOP)
                 .collect(Collectors.toList());
 
@@ -206,7 +206,8 @@ public class AttendeeController {
             return "redirect:/attendee/conferences";
         }
 
-        List<Session> availableEvents = sessionService.findAll();
+        // Filter events to only those linked to this conference
+        List<Session> availableEvents = sessionService.findByConference(conf);
 
         model.addAttribute("conference", conf);
         model.addAttribute("events", availableEvents);

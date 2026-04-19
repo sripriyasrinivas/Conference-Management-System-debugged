@@ -1,5 +1,6 @@
 package com.cms.service.impl;
 
+import com.cms.model.Conference;
 import com.cms.model.Session;
 import com.cms.model.User;
 import com.cms.repository.SessionRepository;
@@ -56,6 +57,7 @@ public class SessionServiceImpl implements SessionService {
         existing.setEndTime(updated.getEndTime());
         existing.setType(updated.getType());
         existing.setSpeaker(updated.getSpeaker());
+        existing.setConference(updated.getConference());
         existing.setMaxCapacity(updated.getMaxCapacity());
 
         return sessionRepository.save(existing);
@@ -81,6 +83,12 @@ public class SessionServiceImpl implements SessionService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<Session> findByConference(Conference conference) {
+        return sessionRepository.findByConference(conference);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<Session> findByDate(LocalDate date) {
         return sessionRepository.findBySessionDate(date);
     }
@@ -90,6 +98,17 @@ public class SessionServiceImpl implements SessionService {
     public Map<LocalDate, List<Session>> getScheduleGroupedByDate() {
         List<Session> all = sessionRepository.findByOrderBySessionDateAscStartTimeAsc();
         return all.stream().collect(Collectors.groupingBy(
+                s -> s.getSessionDate() != null ? s.getSessionDate() : LocalDate.MIN,
+                TreeMap::new,
+                Collectors.toList()
+        ));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<LocalDate, List<Session>> getScheduleGroupedByDateForConference(Conference conference) {
+        List<Session> conferenceSessionsOnly = sessionRepository.findByConference(conference);
+        return conferenceSessionsOnly.stream().collect(Collectors.groupingBy(
                 s -> s.getSessionDate() != null ? s.getSessionDate() : LocalDate.MIN,
                 TreeMap::new,
                 Collectors.toList()

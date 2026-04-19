@@ -1,5 +1,6 @@
 package com.cms.repository;
 
+import com.cms.model.Conference;
 import com.cms.model.Session;
 import com.cms.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -14,6 +15,7 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
     List<Session> findBySpeaker(User speaker);
     List<Session> findBySessionDate(LocalDate date);
     List<Session> findByTrack(String track);
+    List<Session> findByConference(Conference conference);
     List<Session> findByOrderBySessionDateAscStartTimeAsc();
 
     @Query("SELECT s FROM Session s WHERE s.speaker = :speaker AND s.sessionDate = :date")
