@@ -1,36 +1,46 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8"/><title>Conferences | CMS</title>
+    <meta charset="UTF-8"/>
+    <title>Conferences | CMS</title>
     <link rel="stylesheet" th:href="@{/css/style.css}"/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
 </head>
 <body>
 <th:block th:replace="~{common/fragments :: navbar}"></th:block>
 <div th:replace="~{common/fragments :: alerts}"></div>
+
 <main class="container main-content">
     <div class="page-header">
         <h2><i class="fas fa-university"></i> Available Conferences</h2>
+        <p class="text-muted">Browse upcoming conferences and register for events.</p>
     </div>
 
     <div th:if="${#lists.isEmpty(conferences)}" class="empty-state">
         <i class="fas fa-calendar-times fa-3x text-muted"></i>
-        <p>No conferences available at the moment.</p>
+        <p>No conferences available at the moment. Please check back later.</p>
     </div>
 
-    <div th:each="conf : ${conferences}" class="card conference-card">
-        <div class="conference-card-header">
+    <div th:each="conf : ${conferences}" class="card conference-card" style="margin-bottom: 2rem;">
+        <div class="conference-card-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
             <div>
-                <h3 th:text="${conf.name}">Conference Name</h3>
+                <h3 th:text="${conf.name}" style="margin-bottom: 0.5rem;">Conference Name</h3>
                 <span th:if="${conf.status != null}" 
                       th:class="'badge badge-conf-' + ${conf.status.name().toLowerCase()}"
                       th:text="${conf.status}">Status</span>
             </div>
             
-            <div>
-                <span th:if="${#lists.contains(registeredConfIds, conf.id)}" class="badge badge-green">
-                    <i class="fas fa-check"></i> Registered
-                </span>
+            <div class="actions">
+                <div th:if="${#lists.contains(registeredConfIds, conf.id)}" style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
+                    <span class="badge badge-green" style="margin-bottom: 5px;">
+                        <i class="fas fa-check-circle"></i> Registered
+                    </span>
+                    <a th:href="@{/attendee/conferences/{id}/events(id=${conf.id})}" 
+                       class="btn btn-secondary">
+                        <i class="fas fa-calendar-star"></i> View Workshops & Events
+                    </a>
+                </div>
+
                 <a th:if="${!#lists.contains(registeredConfIds, conf.id)}"
                    th:href="@{/attendee/conferences/{id}/register(id=${conf.id})}"
                    class="btn btn-primary">
@@ -39,26 +49,44 @@
             </div>
         </div>
 
-        <p class="text-muted" th:text="${conf.description != null ? #strings.abbreviate(conf.description, 200) : 'No description available.'}"></p>
+        <hr style="margin: 1rem 0; border: 0; border-top: 1px solid #eee;"/>
+
+        <p class="text-muted" th:text="${conf.description != null ? #strings.abbreviate(conf.description, 250) : 'No description provided.'}"></p>
         
-        <div class="conference-card-details">
-            <span><i class="fas fa-map-marker-alt"></i> <span th:text="${conf.venue != null ? conf.venue : 'TBD'}"></span></span>
+        <div class="conference-card-details" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1.5rem;">
+            <span>
+                <i class="fas fa-map-marker-alt text-primary"></i> 
+                <strong style="margin-left: 5px;">Venue:</strong> 
+                <span th:text="${conf.venue != null ? conf.venue : 'TBD'}"></span>
+            </span>
             
-            <span><i class="fas fa-calendar"></i>
-                <span th:text="${conf.startDate != null && conf.endDate != null ? conf.startDate + ' → ' + conf.endDate : 'Dates TBD'}"></span>
+            <span>
+                <i class="fas fa-calendar-alt text-primary"></i> 
+                <strong style="margin-left: 5px;">Dates:</strong>
+                <span th:text="${conf.startDate != null && conf.endDate != null ? conf.startDate + ' to ' + conf.endDate : 'Dates TBD'}"></span>
             </span>
 
             <span th:if="${conf.submissionDeadline != null}">
-                <i class="fas fa-clock"></i> Submission: <span th:text="${conf.submissionDeadline}"></span>
+                <i class="fas fa-hourglass-half text-primary"></i> 
+                <strong style="margin-left: 5px;">Deadline:</strong> 
+                <span th:text="${conf.submissionDeadline}"></span>
             </span>
 
-            <span><i class="fas fa-users"></i>
-                <span th:text="${(conf.registrations != null ? conf.registrations.size() : 0) + '/' + conf.maxAttendees + ' registered'}"></span>
+            <span>
+                <i class="fas fa-users text-primary"></i> 
+                <strong style="margin-left: 5px;">Capacity:</strong>
+                <span th:text="${(conf.registrations != null ? conf.registrations.size() : 0) + ' / ' + conf.maxAttendees}"></span>
             </span>
         </div>
     </div>
 </main>
-<footer class="footer"><p>&copy; 2026 Conference Management System</p></footer>
+
+<footer class="footer">
+    <div class="container">
+        <p>&copy; 2026 Conference Management System | Empowering Research Communities</p>
+    </div>
+</footer>
+
 <script th:src="@{/js/app.js}"></script>
 </body>
 </html>

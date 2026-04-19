@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/><title>Conference Events | CMS</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+</head>
+<body>
+<th:block th:replace="~{common/fragments :: navbar}"></th:block>
+<div th:replace="~{common/fragments :: alerts}"></div>
+
+<main class="container main-content">
+    <div class="page-header">
+        <div>
+            <h2 th:text="${conference.name} + ' - Events'">Events</h2>
+            <p class="text-muted">Register for workshops, panels, and special sessions.</p>
+        </div>
+        <a th:href="@{/attendee/conferences}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back</a>
+    </div>
+
+    <div th:if="${#lists.isEmpty(events)}" class="empty-state">
+        <p>No additional events scheduled for this conference yet.</p>
+    </div>
+
+    <div th:each="event : ${events}" class="card event-card" style="margin-bottom: 1rem; padding: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <span class="badge badge-info" th:text="${event.type.displayName}">Type</span>
+                <h3 th:text="${event.title}" style="margin: 0.5rem 0;">Event Title</h3>
+                <p class="text-muted" th:text="${event.description}"></p>
+                <div class="text-muted small">
+                    <i class="fas fa-clock"></i> <span th:text="${event.sessionDate} + ' | ' + ${event.startTime} + ' - ' + ${event.endTime}"></span>
+                    <i class="fas fa-map-marker-alt" style="margin-left: 15px;"></i> <span th:text="${event.room}">Room</span>
+                </div>
+            </div>
+
+            <div>
+                <span th:if="${#lists.contains(attendingSessionIds, event.id)}" class="badge badge-green">
+                    <i class="fas fa-check"></i> Enrolled
+                </span>
+
+                <form th:if="${!#lists.contains(attendingSessionIds, event.id)}" 
+                      th:action="@{/attendee/events/{id}/join(id=${event.id})}" method="post">
+                    <input type="hidden" name="conferenceId" th:value="${conference.id}"/>
+                    <button type="submit" class="btn btn-success" 
+                            th:disabled="${event.maxCapacity > 0 && event.attendees.size() >= event.maxCapacity}">
+                        <i class="fas fa-user-plus"></i> 
+                        <span th:text="${event.maxCapacity > 0 && event.attendees.size() >= event.maxCapacity ? 'Full' : 'Join Event'}">Join</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</main>
+</body>
+</html>
