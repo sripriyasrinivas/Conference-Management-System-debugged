@@ -27,10 +27,11 @@ public class AttendeeController {
     private final UserService userService;
     private final ConferenceService conferenceService;
     private final RegistrationService registrationService;
+    private final PaymentService paymentService;
     private final SessionService sessionService;
-    private final FeedbackServiceImpl feedbackService;    // FIXED: Use Interface
-    private final CertificateServiceImpl certificateService; // FIXED: Use Interface
-    private final MessageServiceImpl messageService;     // FIXED: Use Interface
+    private final FeedbackServiceImpl feedbackService;
+    private final CertificateServiceImpl certificateService;
+    private final MessageServiceImpl messageService;
 
     @GetMapping("/dashboard")
     public String dashboard(Model model) {
@@ -45,7 +46,6 @@ public class AttendeeController {
         model.addAttribute("myCertificates", certificateService.findByRecipient(attendee));
         model.addAttribute("unreadMessages", messageService.countUnread(attendee));
         
-        // Pass IDs for easy registration checks in dashboard
         model.addAttribute("registeredConfIds", myRegistrations.stream()
                 .map(r -> r.getConference().getId()).collect(Collectors.toList()));
         
@@ -69,6 +69,7 @@ public class AttendeeController {
         return "attendee/conferences";
     }
 
+    // ==================== Registration Form Display ====================
     @GetMapping("/conferences/{id}/register")
     public String registerForm(@PathVariable Long id, Model model) {
         Conference conf = conferenceService.findById(id)
@@ -79,32 +80,99 @@ public class AttendeeController {
         if (registrationService.isRegistered(attendee, conf)) {
             return "redirect:/attendee/conferences";
         }
+
+        // Get available workshops (sessions)
+        List<Session> workshops = sessionService.findAll().stream()
+                .filter(s -> s.getType() == Session.SessionType.WORKSHOP)
+                .collect(Collectors.toList());
+
+        // Check if user has VIP package
+        boolean hasVip = paymentService.hasVipPackage(attendee, conf);
+        
+        // Get available payment packages
+        List<Payment.PackageType> packages = List.of(
+                Payment.PackageType.BASIC,
+                Payment.PackageType.WORKSHOP_ONLY,
+                Payment.PackageType.VIP
+        );
+
         model.addAttribute("conference", conf);
         model.addAttribute("types", Registration.RegistrationType.values());
+        model.addAttribute("workshops", workshops);
+        model.addAttribute("packages", packages);
+        model.addAttribute("hasVipPackage", hasVip);
+        model.addAttribute("hasAvailableSpace", registrationService.hasAvailableSpace(conf));
+        model.addAttribute("confirmedCount", registrationService.countConfirmedByConference(conf));
+        model.addAttribute("waitlistedCount", registrationService.countWaitlistedByConference(conf));
+        
         return "attendee/register-conference";
     }
 
+    // ==================== Registration Form Processing (Activity Diagram) ====================
     @PostMapping("/conferences/{id}/register")
     public String doRegister(@PathVariable Long id,
+                              @RequestParam String fullName,
+                              @RequestParam String email,
                               @RequestParam Registration.RegistrationType type,
                               @RequestParam(required = false) String dietary,
                               @RequestParam(required = false) String special,
+                              @RequestParam(required = false) String selectedWorkshops,
+                              @RequestParam(required = false) String packageType,
                               RedirectAttributes ra) {
         User attendee = userService.getCurrentUser();
         if (attendee == null) return "redirect:/login";
 
         Conference conf = conferenceService.findById(id)
                 .orElseThrow(() -> new RuntimeException("Conference not found"));
-        try {
-            Registration reg = registrationService.register(attendee, conf, type, dietary, special);
-            if (reg.getStatus() == Registration.RegistrationStatus.WAITLISTED) {
-                ra.addFlashAttribute("warning", "Added to waitlist. Conference is at capacity.");
-            } else {
-                ra.addFlashAttribute("success", "Successfully registered for " + conf.getName() + "!");
-            }
-        } catch (RuntimeException e) {
-            ra.addFlashAttribute("error", e.getMessage());
+
+        // Step 1: VALIDATE INPUT
+        Map<String, String> validationErrors = registrationService.validateRegistrationForm(fullName, email, type.toString());
+        
+        if (!validationErrors.isEmpty()) {
+            // Show error messages
+            String errorMsg = String.join("; ", validationErrors.values());
+            ra.addFlashAttribute("error", "Form validation failed: " + errorMsg);
+            ra.addFlashAttribute("validationErrors", validationErrors);
+            return "redirect:/attendee/conferences/" + id + "/register";
         }
+
+        try {
+            // Step 2: CHECK VIP PACKAGE PURCHASED
+            boolean vipPurchased = paymentService.hasVipPackage(attendee, conf);
+            
+            // Step 3: CHECK WORKSHOP SELECTION
+            boolean workshopSelected = selectedWorkshops != null && !selectedWorkshops.trim().isEmpty();
+            
+            // Step 4: PROCESS PAYMENT (Dummy System)
+            if (packageType != null && !packageType.equals("BASIC")) {
+                Payment.PackageType pType = Payment.PackageType.valueOf(packageType);
+                Payment payment = paymentService.processPayment(attendee, conf, pType);
+                // Auto-complete payment in dummy system
+                paymentService.completePayment(payment.getId(), null);
+                
+                vipPurchased = pType == Payment.PackageType.VIP;
+                workshopSelected = workshopSelected || (pType == Payment.PackageType.WORKSHOP_ONLY);
+            }
+
+            // Step 5: PROCESS REGISTRATION WITH ROLE ASSIGNMENT
+            Registration reg = registrationService.processValidatedRegistration(
+                    attendee, conf, type, dietary, special, selectedWorkshops, vipPurchased
+            );
+
+            // Step 6: PROVIDE ACCESS (Access control via assigned role)
+            if (reg.getStatus() == Registration.RegistrationStatus.WAITLISTED) {
+                ra.addFlashAttribute("warning", "Added to waitlist (Position: " + 
+                    registrationService.countWaitlistedByConference(conf) + 
+                    "). Conference is at capacity. You'll be promoted when a spot opens.");
+            } else {
+                String roleMsg = "Registered as " + reg.getAssignedRole().getDisplayName();
+                ra.addFlashAttribute("success", "Successfully registered for " + conf.getName() + "! " + roleMsg);
+            }
+            
+        } catch (RuntimeException e) {
+            ra.addFlashAttribute("error", "Registration failed: " + e.getMessage());
+        }
+        
         return "redirect:/attendee/conferences";
     }
 
@@ -114,9 +182,8 @@ public class AttendeeController {
         ra.addFlashAttribute("success", "Registration cancelled.");
         return "redirect:/attendee/dashboard";
     }
-    // Add this to your AttendeeController
-// --- Session/Event Enrollment --------------------------------------
-    
+
+    // ==================== Session/Event Enrollment ====================
     @GetMapping("/conferences/{id}/events")
     public String viewConferenceEvents(@PathVariable Long id, Model model) {
         User attendee = userService.getCurrentUser();
@@ -130,14 +197,12 @@ public class AttendeeController {
             return "redirect:/attendee/conferences";
         }
 
-        // Get all sessions (Filtering out general paper presentations if you want only workshops)
         List<Session> availableEvents = sessionService.findAll();
 
         model.addAttribute("conference", conf);
         model.addAttribute("events", availableEvents);
         model.addAttribute("attendee", attendee);
         
-        // Pass IDs of sessions the user is already attending
         List<Long> attendingSessionIds = availableEvents.stream()
                 .filter(s -> s.getAttendees().contains(attendee))
                 .map(Session::getId)
@@ -154,16 +219,24 @@ public class AttendeeController {
         User attendee = userService.getCurrentUser();
         if (attendee == null) return "redirect:/login";
 
+        Conference conf = conferenceService.findById(conferenceId)
+                .orElseThrow(() -> new RuntimeException("Conference not found"));
+
+        // Access Control: Verify attendee is registered for the conference
+        if (!registrationService.isRegistered(attendee, conf)) {
+            ra.addFlashAttribute("error", "You must be registered for the conference to join events.");
+            return "redirect:/attendee/conferences/" + conferenceId + "/events";
+        }
+
         try {
-            // Logic to add attendee to session (must be handled in SessionService)
             sessionService.enrollAttendee(sessionId, attendee);
             ra.addFlashAttribute("success", "Successfully enrolled in the event!");
         } catch (RuntimeException e) {
-            ra.addFlashAttribute("error", e.getMessage());
+            ra.addFlashAttribute("error", "Cannot enroll: " + e.getMessage());
         }
         return "redirect:/attendee/conferences/" + conferenceId + "/events";
     }
-    // ── Schedule: FIXED FOR NULL SAFETY ──────────────────────────────────────
+
     @GetMapping("/schedule")
     public String viewSchedule(Model model) {
         Map<LocalDate, List<Session>> schedule = sessionService.getScheduleGroupedByDate();

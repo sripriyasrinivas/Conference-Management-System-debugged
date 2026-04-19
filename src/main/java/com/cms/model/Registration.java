@@ -3,6 +3,8 @@ package com.cms.model;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "registrations")
@@ -39,7 +41,33 @@ public class Registration {
     private LocalDateTime registeredAt = LocalDateTime.now();
 
     private LocalDateTime confirmedAt;
-    private boolean certificateIssued;
+    
+    // Certificate Tracking
+    @Builder.Default
+    private boolean certificateIssued = false;
+    
+    @Builder.Default
+    private boolean attendanceConfirmed = false;
+    
+    private LocalDateTime certificateIssuedAt;
+    
+    private int sessionsAttended;
+    
+    // Role Assignment (based on payment/workshop selection)
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private AssignedRole assignedRole = AssignedRole.ATTENDEE;
+    
+    // Workshop Selection (comma-separated workshop IDs)
+    @Column(columnDefinition = "TEXT")
+    private String selectedWorkshops;
+    
+    // Input Validation Tracking
+    @Builder.Default
+    private boolean formValidated = false;
+    
+    @Column(columnDefinition = "TEXT")
+    private String validationErrors;
 
     public enum RegistrationStatus {
         PENDING, CONFIRMED, CANCELLED, WAITLISTED
@@ -47,5 +75,21 @@ public class Registration {
 
     public enum RegistrationType {
         STUDENT, PROFESSIONAL, ACADEMIC, VIRTUAL
+    }
+    
+    public enum AssignedRole {
+        ATTENDEE("Attendee"),
+        VIP("VIP - All Workshops"),
+        WORKSHOP_ONLY("Workshop Only - Selected");
+        
+        private final String displayName;
+        
+        AssignedRole(String displayName) {
+            this.displayName = displayName;
+        }
+        
+        public String getDisplayName() {
+            return displayName;
+        }
     }
 }
