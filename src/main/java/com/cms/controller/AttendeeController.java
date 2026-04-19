@@ -118,6 +118,7 @@ public class AttendeeController {
                               @RequestParam(required = false) String special,
                               @RequestParam(required = false) String selectedWorkshops,
                               @RequestParam(required = false) String packageType,
+                              @RequestParam(defaultValue = "false") String paymentConfirmed,
                               RedirectAttributes ra) {
         User attendee = userService.getCurrentUser();
         if (attendee == null) return "redirect:/login";
@@ -137,6 +138,14 @@ public class AttendeeController {
         }
 
         try {
+            // PAYMENT VALIDATION: Check payment confirmation for non-BASIC packages
+            if (packageType != null && !packageType.equals("BASIC")) {
+                if (!"true".equals(paymentConfirmed)) {
+                    ra.addFlashAttribute("error", "Payment must be confirmed to complete registration. Please click 'Yes, Pay' to proceed.");
+                    return "redirect:/attendee/conferences/" + id + "/register";
+                }
+            }
+
             // Step 2: CHECK VIP PACKAGE PURCHASED
             boolean vipPurchased = paymentService.hasVipPackage(attendee, conf);
             

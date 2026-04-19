@@ -45,7 +45,10 @@
         </div>
         
         <div class="card-body">
-            <form th:action="@{/attendee/conferences/{id}/register(id=${conference.id})}" method="post">
+            <form th:action="@{/attendee/conferences/{id}/register(id=${conference.id})}" method="post" id="registrationForm">
+                
+                <!-- Hidden field to track payment confirmation -->
+                <input type="hidden" name="paymentConfirmed" id="paymentConfirmed" value="false"/>
                 
                 <!-- STEP 1: FORM VALIDATION - Personal Information -->
                 <div class="form-section">
@@ -167,7 +170,7 @@
                 </div>
                 
                 <div class="form-actions">
-                    <button type="submit" class="btn btn-primary">
+                    <button type="button" class="btn btn-primary" onclick="handleRegistrationSubmit()">
                         <i class="fas fa-check"></i> Complete Registration
                     </button>
                     <a th:href="@{/attendee/conferences}" class="btn btn-secondary">Cancel</a>
@@ -190,10 +193,57 @@
     </div>
 </main>
 
+<!-- Payment Confirmation Modal -->
+<div id="paymentModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.4);">
+    <div class="modal-content" style="background-color: #fefefe; margin: 10% auto; padding: 2rem; border: 1px solid #888; border-radius: 8px; width: 90%; max-width: 500px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
+        <div style="text-align: center; margin-bottom: 1.5rem;">
+            <i class="fas fa-credit-card" style="font-size: 3rem; color: #007bff; margin-bottom: 1rem;"></i>
+            <h3 style="margin: 0.5rem 0; color: #333;">Payment Confirmation</h3>
+            <p style="color: #666; margin: 0.5rem 0;">Please confirm your payment to complete registration</p>
+        </div>
+        
+        <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 6px; margin-bottom: 1.5rem; border-left: 4px solid #007bff;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                <span style="color: #666;">Package:</span>
+                <strong id="paymentPackageName" style="color: #333;"></strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                <span style="color: #666;">Amount:</span>
+                <strong id="paymentAmount" style="color: #28a745; font-size: 1.2rem;"></strong>
+            </div>
+            <hr style="margin: 0.75rem 0; border: none; border-top: 1px solid #ddd;"/>
+            <div style="display: flex; justify-content: space-between;">
+                <span style="color: #666; font-weight: bold;">Total:</span>
+                <span id="paymentTotal" style="font-size: 1.5rem; color: #007bff; font-weight: bold;"></span>
+            </div>
+        </div>
+        
+        <p style="color: #666; font-size: 0.95rem; text-align: center; margin-bottom: 1.5rem;">
+            <i class="fas fa-lock"></i> Your payment information is secure and encrypted.
+        </p>
+        
+        <div style="display: flex; gap: 1rem; justify-content: center;">
+            <button type="button" onclick="cancelPayment()" class="btn btn-secondary" style="flex: 1; padding: 0.75rem;">
+                <i class="fas fa-times"></i> No, Cancel
+            </button>
+            <button type="button" onclick="confirmPayment()" class="btn btn-success" style="flex: 1; padding: 0.75rem; background-color: #28a745; border-color: #28a745;">
+                <i class="fas fa-check"></i> Yes, Pay
+            </button>
+        </div>
+    </div>
+</div>
+
 <footer class="footer"><p>&copy; 2026 Conference Management System</p></footer>
 
 <script th:src="@{/js/app.js}"></script>
 <script>
+// Payment packages and their prices
+const packagePrices = {
+    'BASIC': { name: 'Basic Registration', price: '$0.00' },
+    'WORKSHOP_ONLY': { name: 'Workshop Only', price: '$25.00' },
+    'VIP': { name: 'VIP Package', price: '$50.00' }
+};
+
 function updateWorkshopVisibility() {
     const basicRadio = document.getElementById('pkg_basic');
     const workshopRadio = document.getElementById('pkg_workshop');
@@ -209,6 +259,75 @@ function updateWorkshopVisibility() {
     } else {
         workshopSection.style.display = 'none';
         document.querySelectorAll('input[name="selectedWorkshops"]').forEach(cb => cb.checked = false);
+    }
+}
+
+function getSelectedPackage() {
+    const packageRadios = document.querySelectorAll('input[name="packageType"]');
+    let selectedPackage = 'BASIC';
+    packageRadios.forEach(radio => {
+        if (radio.checked) {
+            selectedPackage = radio.value;
+        }
+    });
+    return selectedPackage;
+}
+
+function handleRegistrationSubmit() {
+    const selectedPackage = getSelectedPackage();
+    const paymentConfirmedField = document.getElementById('paymentConfirmed');
+    
+    // If BASIC package (free), submit directly
+    if (selectedPackage === 'BASIC') {
+        paymentConfirmedField.value = 'true';
+        document.getElementById('registrationForm').submit();
+        return;
+    }
+    
+    // For paid packages, show payment modal
+    showPaymentModal(selectedPackage);
+}
+
+function showPaymentModal(packageType) {
+    const packageInfo = packagePrices[packageType];
+    if (!packageInfo) return;
+    
+    // Update modal with package details
+    document.getElementById('paymentPackageName').textContent = packageInfo.name;
+    document.getElementById('paymentAmount').textContent = packageInfo.price;
+    document.getElementById('paymentTotal').textContent = packageInfo.price;
+    
+    // Show the modal
+    document.getElementById('paymentModal').style.display = 'block';
+}
+
+function confirmPayment() {
+    // Set payment confirmation flag
+    document.getElementById('paymentConfirmed').value = 'true';
+    
+    // Close modal
+    document.getElementById('paymentModal').style.display = 'none';
+    
+    // Submit the form
+    document.getElementById('registrationForm').submit();
+}
+
+function cancelPayment() {
+    // Reset payment confirmation flag
+    document.getElementById('paymentConfirmed').value = 'false';
+    
+    // Close modal
+    document.getElementById('paymentModal').style.display = 'none';
+    
+    // Show warning message
+    alert('Payment cancelled. You cannot register without completing the payment.');
+}
+
+// Close modal when clicking outside of it
+window.onclick = function(event) {
+    const modal = document.getElementById('paymentModal');
+    if (event.target == modal) {
+        cancelPayment();
     }
 }
 
