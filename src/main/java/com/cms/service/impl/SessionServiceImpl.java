@@ -21,6 +21,13 @@ public class SessionServiceImpl implements SessionService {
 
     @Override
     public Session createSession(Session session) {
+        // Validate start time is before end time
+        if (session.getStartTime() != null && session.getEndTime() != null) {
+            if (session.getStartTime().isAfter(session.getEndTime()) || session.getStartTime().equals(session.getEndTime())) {
+                throw new RuntimeException("Session start time must be before end time.");
+            }
+        }
+        
         List<String> conflicts = detectConflicts(session);
         if (!conflicts.isEmpty()) {
             throw new RuntimeException("Scheduling conflicts detected: " + String.join("; ", conflicts));
@@ -45,6 +52,13 @@ public class SessionServiceImpl implements SessionService {
     }
     @Override
     public Session updateSession(Long id, Session updated) {
+        // Validate start time is before end time
+        if (updated.getStartTime() != null && updated.getEndTime() != null) {
+            if (updated.getStartTime().isAfter(updated.getEndTime()) || updated.getStartTime().equals(updated.getEndTime())) {
+                throw new RuntimeException("Session start time must be before end time.");
+            }
+        }
+        
         Session existing = sessionRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Session not found: " + id));
 
