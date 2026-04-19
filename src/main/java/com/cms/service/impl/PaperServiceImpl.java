@@ -6,9 +6,11 @@ import com.cms.repository.PaperRepository;
 import com.cms.service.PaperService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Service; // ADD THIS IMPORT
+import org.springframework.stereotype.Component; // ADD THIS IF USING @Component
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+
 import java.io.IOException;
 import java.nio.file.*;
 import java.time.LocalDateTime;
@@ -16,7 +18,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-@Service
+/**
+ * Core paper business logic — the "ConcreteComponent" in the
+ * Decorator pattern. Registered as @Service.
+ */
+@Service // This is what the compiler was looking for
 @RequiredArgsConstructor
 @Transactional
 public class PaperServiceImpl implements PaperService {
@@ -36,7 +42,6 @@ public class PaperServiceImpl implements PaperService {
             paper.setFileName(file.getOriginalFilename());
             paper.setFilePath(fileName);
         }
-
         return paperRepository.save(paper);
     }
 
@@ -57,7 +62,6 @@ public class PaperServiceImpl implements PaperService {
             existing.setFileName(file.getOriginalFilename());
             existing.setFilePath(fileName);
         }
-
         return paperRepository.save(existing);
     }
 
@@ -115,7 +119,7 @@ public class PaperServiceImpl implements PaperService {
                 Files.createDirectories(uploadPath);
             }
             String uniqueName = UUID.randomUUID() + "_" + file.getOriginalFilename();
-            Path destination = uploadPath.resolve(uniqueName);
+            Path destination  = uploadPath.resolve(uniqueName);
             Files.copy(file.getInputStream(), destination, StandardCopyOption.REPLACE_EXISTING);
             return uniqueName;
         } catch (IOException e) {
