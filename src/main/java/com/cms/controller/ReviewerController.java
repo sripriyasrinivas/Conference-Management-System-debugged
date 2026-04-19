@@ -19,7 +19,7 @@ public class ReviewerController {
 
     private final UserService userService;
     private final ReviewService reviewService;
-
+    private final PaperService paperService;
     @GetMapping("/dashboard")
     public String dashboard(Model model) {
         User reviewer = userService.getCurrentUser();
@@ -42,6 +42,15 @@ public class ReviewerController {
         model.addAttribute("completedCount", completedCount);
         
         return "reviewer/dashboard";
+    }
+    @GetMapping("/papers/{id}")
+    public String viewPaperDetails(@PathVariable Long id, Model model) {
+        Paper paper = paperService.findById(id)
+                .orElseThrow(() -> new RuntimeException("Paper not found"));
+        
+        model.addAttribute("paper", paper);
+        // This string must match the path: resources/templates/reviewer/paper-detail.html
+        return "reviewer/paper-detail"; 
     }
     @GetMapping("/reviews")
     public String myReviews(Model model) {

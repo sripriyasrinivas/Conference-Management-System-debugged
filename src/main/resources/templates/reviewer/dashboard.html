@@ -32,7 +32,7 @@
         <div class="stat-card stat-green">
             <div class="stat-icon"><i class="fas fa-check-double"></i></div>
             <div class="stat-info">
-                <div class="stat-value" th:text="${completedCount}">0</div>
+                <div class="stat-value" th:text="${completedCount != null ? completedCount : 0}">0</div>
                 <div class="stat-label">Completed</div>
             </div>
         </div>
@@ -44,50 +44,69 @@
         <p>All caught up! No pending reviews.</p>
     </div>
 
-    <div th:each="review : ${pendingReviews}" class="card review-assignment-card">
-        <div class="review-assignment-header">
+    <div th:each="review : ${pendingReviews}" class="card review-assignment-card" style="margin-bottom: 1.5rem;">
+        <div class="review-assignment-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
             <div>
                 <h4 th:text="${review.paper != null ? review.paper.title : 'Untitled Paper'}"></h4>
-                <p class="text-muted">by <span th:text="${review.paper != null && review.paper.author != null ? review.paper.author.institution : 'Unknown Institution'}"></span></p>
+                <p class="text-muted" style="margin-bottom: 0.5rem;">
+                    by <span th:text="${review.paper != null && review.paper.author != null ? review.paper.author.fullName : 'Unknown Author'}"></span>
+                </p>
             </div>
-            <a th:href="@{/reviewer/reviews/{id}(id=${review.id})}" class="btn btn-primary">
-                <i class="fas fa-pen"></i> Start Review
-            </a>
+            
+            <div class="action-buttons" style="display: flex; gap: 10px;">
+                <a th:if="${review.paper != null}" 
+                   th:href="@{/papers/view/{id}(id=${review.paper.id})}" 
+                   target="_blank" 
+                   class="btn btn-secondary btn-sm">
+                    <i class="fas fa-file-pdf"></i> View Paper
+                </a>
+                
+                <a th:href="@{/reviewer/reviews/{id}(id=${review.id})}" class="btn btn-primary btn-sm">
+                    <i class="fas fa-pen"></i> Start Review
+                </a>
+            </div>
         </div>
-        <p class="abstract-preview" th:text="${review.paper != null && review.paper.abstractText != null ? #strings.abbreviate(review.paper.abstractText, 180) : 'No abstract available.'}"></p>
+
+        <p class="abstract-preview" style="font-size: 0.9rem; color: #555;"
+           th:text="${review.paper != null ? #strings.abbreviate(review.paper.title, 100) : 'No title available.'}"></p>
         
-        <div class="review-meta-row">
-            <span class="text-muted small"><i class="fas fa-tags"></i> <span th:text="${review.paper != null ? review.paper.keywords : 'N/A'}"></span></span>
-            <span th:if="${review.deadline != null}" class="deadline-badge">
+        <div class="review-meta-row" style="margin-top: 1rem; font-size: 0.85rem;">
+            <span class="text-muted"><i class="fas fa-tags"></i> <span th:text="${review.paper != null ? review.paper.keywords : 'N/A'}"></span></span>
+            <span th:if="${review.deadline != null}" class="deadline-badge" style="margin-left: 20px; color: #d9534f;">
                 <i class="fas fa-calendar-times"></i>
                 Due: <span th:text="${#temporals.format(review.deadline,'dd MMM yyyy')}"></span>
             </span>
         </div>
     </div>
 
-    <div class="section-title" style="margin-top:1.5rem"><h3><i class="fas fa-check"></i> Completed Reviews</h3></div>
+    <div class="section-title" style="margin-top:2rem"><h3><i class="fas fa-check"></i> Completed Reviews</h3></div>
     <div class="card">
         <table class="data-table">
-            <thead><tr><th>Paper</th><th>Score</th><th>Recommendation</th><th>Submitted</th></tr></thead>
+            <thead>
+                <tr>
+                    <th>Paper Title</th>
+                    <th>Score</th>
+                    <th>Recommendation</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
             <tbody>
                 <tr th:each="review : ${allReviews}" th:if="${review.status != null && review.status.name() == 'SUBMITTED'}">
                     <td th:text="${review.paper != null ? review.paper.title : 'N/A'}"></td>
                     <td><span class="score-badge" th:text="${review.score} + '/10'"></span></td>
+                    <td th:text="${review.recommendation}"></td>
                     <td>
-                        <span th:if="${review.recommendation != null}" 
-                              th:class="'badge badge-rec-' + ${review.recommendation.name().toLowerCase()}"
-                              th:text="${review.recommendation}"></span>
+                        <a th:if="${review.paper != null}" 
+                           th:href="@{/papers/view/{id}(id=${review.paper.id})}" 
+                           target="_blank" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-eye"></i> View
+                        </a>
                     </td>
-                    <td th:text="${review.submittedAt != null ? #temporals.format(review.submittedAt,'dd MMM yyyy') : 'N/A'}"></td>
-                </tr>
-                <tr th:if="${completedCount == 0}">
-                    <td colspan="4" class="text-center text-muted">No completed reviews yet.</td>
                 </tr>
             </tbody>
         </table>
     </div>
 </main>
 <footer class="footer"><p>&copy; 2026 Conference Management System</p></footer>
-<script th:src="@{/js/app.js}"></script>
 </body>
 </html>

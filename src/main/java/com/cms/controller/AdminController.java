@@ -103,13 +103,27 @@ public class AdminController {
     @GetMapping("/users")
     public String listUsers(Model model) {
         model.addAttribute("users", userService.findAll());
+        // Pass the logged-in user's ID to the template
+        model.addAttribute("currentUserId", userService.getCurrentUser().getId());
         return "admin/users";
     }
 
     @PostMapping("/users/{id}/delete")
     public String deleteUser(@PathVariable Long id, RedirectAttributes ra) {
-        userService.deleteUser(id);
-        ra.addFlashAttribute("success", "User deleted successfully.");
+        User currentUser = userService.getCurrentUser();
+        
+        // SERVER-SIDE GUARD: Prevent self-deletion
+        if (currentUser != null && currentUser.getId().equals(id)) {
+            ra.addFlashAttribute("error", "Security Violation: You cannot delete your own account.");
+            return "redirect:/admin/users";
+        }
+
+        try {
+            userService.deleteUser(id);
+            ra.addFlashAttribute("success", "User deleted successfully.");
+        } catch (RuntimeException e) {
+            ra.addFlashAttribute("error", "Error: " + e.getMessage());
+        }
         return "redirect:/admin/users";
     }
 
