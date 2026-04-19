@@ -22,7 +22,9 @@ public class Session {
 
     @NotBlank
     private String title;
-
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "conference_id")
+    private Conference conference; // Add this field
     @Column(columnDefinition = "TEXT")
     private String description;
 

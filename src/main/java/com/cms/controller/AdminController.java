@@ -226,26 +226,35 @@ public class AdminController {
         return "redirect:/admin/conferences";
     }
 
-    // ── Session Management ────────────────────────────────────────
     @GetMapping("/sessions")
     public String listSessions(Model model) {
-        model.addAttribute("sessions",       sessionService.findAll());
-        model.addAttribute("newSession",     new Session());
-        model.addAttribute("speakers",       userService.findByRole(User.Role.SPEAKER));
+        model.addAttribute("sessions",        sessionService.findAll());
+        model.addAttribute("newSession",      new Session());
+        model.addAttribute("speakers",        userService.findByRole(User.Role.SPEAKER));
         model.addAttribute("acceptedPapers", paperService.findByStatus(Paper.Status.ACCEPTED));
+        
+        // CRITICAL: This name must be "conferences" (plural)
+        model.addAttribute("conferences",    conferenceService.findAll()); 
+        
         return "admin/sessions";
     }
 
     @PostMapping("/sessions/create")
     public String createSession(@ModelAttribute Session session,
+                                 @RequestParam Long conferenceId, // Capture the conference
                                  @RequestParam(required = false) Long speakerId,
                                  @RequestParam(required = false) Long paperId,
                                  RedirectAttributes ra) {
+        
+        // Link the Conference (Crucial for OOAD structure)
+        conferenceService.findById(conferenceId).ifPresent(session::setConference);
+        
         if (speakerId != null) userService.findById(speakerId).ifPresent(session::setSpeaker);
         if (paperId   != null) paperService.findById(paperId).ifPresent(session::setPaper);
+        
         try {
             sessionService.createSession(session);
-            ra.addFlashAttribute("success", "Session created successfully.");
+            ra.addFlashAttribute("success", "Session created and linked to conference successfully.");
         } catch (RuntimeException e) {
             ra.addFlashAttribute("error", e.getMessage());
         }
