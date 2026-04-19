@@ -19,4 +19,5 @@ public interface SessionService {
     void deleteSession(Long id);
     List<LocalDate> getAllSessionDates();
     List<String> getAllTracks();
+    void enrollAttendee(Long sessionId, User attendee);
 }

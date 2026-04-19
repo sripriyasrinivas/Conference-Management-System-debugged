@@ -13,7 +13,9 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Controller
@@ -26,9 +28,9 @@ public class AttendeeController {
     private final ConferenceService conferenceService;
     private final RegistrationService registrationService;
     private final SessionService sessionService;
-    private final FeedbackServiceImpl feedbackService;    // Fixed: Use Interface
-    private final CertificateServiceImpl certificateService; // Fixed: Use Interface
-    private final MessageServiceImpl messageService;     // Fixed: Use Interface
+    private final FeedbackServiceImpl feedbackService;    // FIXED: Use Interface
+    private final CertificateServiceImpl certificateService; // FIXED: Use Interface
+    private final MessageServiceImpl messageService;     // FIXED: Use Interface
 
     @GetMapping("/dashboard")
     public String dashboard(Model model) {
@@ -58,23 +60,22 @@ public class AttendeeController {
         List<Conference> allConferences = conferenceService.findAll();
         List<Registration> myRegistrations = registrationService.findByAttendee(attendee);
 
-        // Calculate registered IDs here so Thymeleaf doesn't use .stream()
         List<Long> registeredConfIds = myRegistrations.stream()
                 .map(r -> r.getConference().getId())
                 .collect(Collectors.toList());
 
         model.addAttribute("conferences", allConferences);
-        model.addAttribute("registeredConfIds", registeredConfIds); // The "Secret Sauce" to fix the crash
+        model.addAttribute("registeredConfIds", registeredConfIds);
         return "attendee/conferences";
     }
-
-    // ... (rest of your registration and profile methods remain the same)
 
     @GetMapping("/conferences/{id}/register")
     public String registerForm(@PathVariable Long id, Model model) {
         Conference conf = conferenceService.findById(id)
                 .orElseThrow(() -> new RuntimeException("Conference not found"));
         User attendee = userService.getCurrentUser();
+        if (attendee == null) return "redirect:/login";
+
         if (registrationService.isRegistered(attendee, conf)) {
             return "redirect:/attendee/conferences";
         }
@@ -90,6 +91,8 @@ public class AttendeeController {
                               @RequestParam(required = false) String special,
                               RedirectAttributes ra) {
         User attendee = userService.getCurrentUser();
+        if (attendee == null) return "redirect:/login";
+
         Conference conf = conferenceService.findById(id)
                 .orElseThrow(() -> new RuntimeException("Conference not found"));
         try {
@@ -111,19 +114,71 @@ public class AttendeeController {
         ra.addFlashAttribute("success", "Registration cancelled.");
         return "redirect:/attendee/dashboard";
     }
+    // Add this to your AttendeeController
+// --- Session/Event Enrollment --------------------------------------
+    
+    @GetMapping("/conferences/{id}/events")
+    public String viewConferenceEvents(@PathVariable Long id, Model model) {
+        User attendee = userService.getCurrentUser();
+        if (attendee == null) return "redirect:/login";
 
-    // ── Schedule ──────────────────────────────────────────────────────────────
+        Conference conf = conferenceService.findById(id)
+                .orElseThrow(() -> new RuntimeException("Conference not found"));
+
+        // Guard: Only allow registered attendees to see and join specific sessions
+        if (!registrationService.isRegistered(attendee, conf)) {
+            return "redirect:/attendee/conferences";
+        }
+
+        // Get all sessions (Filtering out general paper presentations if you want only workshops)
+        List<Session> availableEvents = sessionService.findAll();
+
+        model.addAttribute("conference", conf);
+        model.addAttribute("events", availableEvents);
+        model.addAttribute("attendee", attendee);
+        
+        // Pass IDs of sessions the user is already attending
+        List<Long> attendingSessionIds = availableEvents.stream()
+                .filter(s -> s.getAttendees().contains(attendee))
+                .map(Session::getId)
+                .collect(Collectors.toList());
+        model.addAttribute("attendingSessionIds", attendingSessionIds);
+
+        return "attendee/events";
+    }
+
+    @PostMapping("/events/{sessionId}/join")
+    public String joinEvent(@PathVariable Long sessionId, 
+                            @RequestParam Long conferenceId, 
+                            RedirectAttributes ra) {
+        User attendee = userService.getCurrentUser();
+        if (attendee == null) return "redirect:/login";
+
+        try {
+            // Logic to add attendee to session (must be handled in SessionService)
+            sessionService.enrollAttendee(sessionId, attendee);
+            ra.addFlashAttribute("success", "Successfully enrolled in the event!");
+        } catch (RuntimeException e) {
+            ra.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/attendee/conferences/" + conferenceId + "/events";
+    }
+    // ── Schedule: FIXED FOR NULL SAFETY ──────────────────────────────────────
     @GetMapping("/schedule")
     public String viewSchedule(Model model) {
-        model.addAttribute("schedule", sessionService.getScheduleGroupedByDate());
-        model.addAttribute("tracks", sessionService.getAllTracks());
+        Map<LocalDate, List<Session>> schedule = sessionService.getScheduleGroupedByDate();
+        List<String> tracks = sessionService.getAllTracks();
+
+        model.addAttribute("schedule", schedule);
+        model.addAttribute("tracks", tracks);
         return "attendee/schedule";
     }
 
-    // ── Feedback ──────────────────────────────────────────────────────────────
     @GetMapping("/feedback")
     public String feedbackPage(Model model) {
         User attendee = userService.getCurrentUser();
+        if (attendee == null) return "redirect:/login";
+
         model.addAttribute("sessions", sessionService.findAll());
         model.addAttribute("attendee", attendee);
         return "attendee/feedback";
@@ -137,6 +192,8 @@ public class AttendeeController {
                                   @RequestParam(required = false) String comments,
                                   RedirectAttributes ra) {
         User attendee = userService.getCurrentUser();
+        if (attendee == null) return "redirect:/login";
+
         try {
             feedbackService.submitFeedback(attendee, sessionId, contentRating,
                     speakerRating, overallRating, comments);
@@ -147,24 +204,29 @@ public class AttendeeController {
         return "redirect:/attendee/feedback";
     }
 
-    // ── Certificates ──────────────────────────────────────────────────────────
     @GetMapping("/certificates")
     public String myCertificates(Model model) {
         User attendee = userService.getCurrentUser();
+        if (attendee == null) return "redirect:/login";
+
         model.addAttribute("certificates", certificateService.findByRecipient(attendee));
         return "attendee/certificates";
     }
 
-    // ── Profile ───────────────────────────────────────────────────────────────
     @GetMapping("/profile")
     public String profile(Model model) {
-        model.addAttribute("user", userService.getCurrentUser());
+        User user = userService.getCurrentUser();
+        if (user == null) return "redirect:/login";
+        
+        model.addAttribute("user", user);
         return "attendee/profile";
     }
 
     @PostMapping("/profile")
     public String updateProfile(@ModelAttribute User updated, RedirectAttributes ra) {
         User current = userService.getCurrentUser();
+        if (current == null) return "redirect:/login";
+
         current.setFullName(updated.getFullName());
         current.setInstitution(updated.getInstitution());
         current.setBio(updated.getBio());

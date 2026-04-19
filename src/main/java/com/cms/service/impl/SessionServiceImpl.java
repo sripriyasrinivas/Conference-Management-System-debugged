@@ -26,7 +26,22 @@ public class SessionServiceImpl implements SessionService {
         }
         return sessionRepository.save(session);
     }
+    @Override
+    public void enrollAttendee(Long sessionId, User attendee) {
+        Session session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new RuntimeException("Session not found"));
 
+        // Capacity check
+        if (session.getMaxCapacity() > 0 && session.getAttendees().size() >= session.getMaxCapacity()) {
+            throw new RuntimeException("This event has reached its maximum capacity.");
+        }
+
+        // Avoid double enrollment
+        if (!session.getAttendees().contains(attendee)) {
+            session.getAttendees().add(attendee);
+            sessionRepository.save(session);
+        }
+    }
     @Override
     public Session updateSession(Long id, Session updated) {
         Session existing = sessionRepository.findById(id)
