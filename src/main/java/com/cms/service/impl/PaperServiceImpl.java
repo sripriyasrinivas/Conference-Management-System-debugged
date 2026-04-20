@@ -2,6 +2,7 @@ package com.cms.service.impl;
 
 import com.cms.model.Paper;
 import com.cms.model.User;
+import com.cms.pattern.singleton.ConferenceAppConfig;
 import com.cms.repository.PaperRepository;
 import com.cms.service.PaperService;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +39,16 @@ public class PaperServiceImpl implements PaperService {
         paper.setStatus(Paper.Status.SUBMITTED);
 
         if (file != null && !file.isEmpty()) {
+            // ── Singleton Pattern: validate file size ─────────────
+            long maxFileSizeMb = ConferenceAppConfig.getInstance().getMaxFileSizeMb();
+            long maxFileSizeBytes = maxFileSizeMb * 1024 * 1024;
+            if (file.getSize() > maxFileSizeBytes) {
+                throw new RuntimeException(
+                    "File size exceeds maximum limit of " + maxFileSizeMb + " MB. " +
+                    "Your file is " + (file.getSize() / (1024 * 1024)) + " MB.");
+            }
+            // ──────────────────────────────────────────────────────
+            
             String fileName = storeFile(file);
             paper.setFileName(file.getOriginalFilename());
             paper.setFilePath(fileName);
@@ -58,6 +69,16 @@ public class PaperServiceImpl implements PaperService {
         existing.setUpdatedAt(LocalDateTime.now());
 
         if (file != null && !file.isEmpty()) {
+            // ── Singleton Pattern: validate file size ─────────────
+            long maxFileSizeMb = ConferenceAppConfig.getInstance().getMaxFileSizeMb();
+            long maxFileSizeBytes = maxFileSizeMb * 1024 * 1024;
+            if (file.getSize() > maxFileSizeBytes) {
+                throw new RuntimeException(
+                    "File size exceeds maximum limit of " + maxFileSizeMb + " MB. " +
+                    "Your file is " + (file.getSize() / (1024 * 1024)) + " MB.");
+            }
+            // ──────────────────────────────────────────────────────
+            
             String fileName = storeFile(file);
             existing.setFileName(file.getOriginalFilename());
             existing.setFilePath(fileName);

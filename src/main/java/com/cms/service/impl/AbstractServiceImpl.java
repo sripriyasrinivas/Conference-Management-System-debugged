@@ -3,6 +3,7 @@ package com.cms.service.impl;
 import com.cms.model.Abstract;
 import com.cms.model.User;
 import com.cms.repository.AbstractRepository;
+import com.cms.pattern.singleton.ConferenceAppConfig;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +19,23 @@ public class AbstractServiceImpl {
     private final AbstractRepository abstractRepository;
 
     public Abstract submit(Abstract abs, User author) {
+        // ── Singleton Pattern: validate abstract word count ───────
+        int maxWords = ConferenceAppConfig.getInstance().getMaxAbstractWords();
+        String content = abs.getContent();
+        
+        if (content == null || content.trim().isEmpty()) {
+            throw new RuntimeException("Abstract content is required.");
+        }
+        
+        // Count non-empty words
+        String[] words = content.trim().split("\\s+");
+        if (words.length > maxWords) {
+            throw new RuntimeException(
+                "Abstract exceeds maximum word limit of " + maxWords + " words. " +
+                "Your abstract has " + words.length + " words.");
+        }
+        // ─────────────────────────────────────────────────────────
+        
         abs.setAuthor(author);
         abs.setStatus(Abstract.AbstractStatus.SUBMITTED);
         return abstractRepository.save(abs);

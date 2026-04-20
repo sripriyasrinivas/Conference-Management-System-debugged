@@ -55,6 +55,15 @@ public class ReviewServiceImpl implements ReviewService {
         if (paper.getAuthor().getId().equals(reviewer.getId())) {
             throw new RuntimeException("Author cannot review their own paper.");
         }
+        
+        // ── Singleton Pattern: validate max reviewers per paper ──
+        int maxReviewers = ConferenceAppConfig.getInstance().getMaxReviewersPerPaper();
+        long currentReviewerCount = reviewRepository.findByPaper(paper).size();
+        if (currentReviewerCount >= maxReviewers) {
+            throw new RuntimeException(
+                "Maximum number of reviewers (" + maxReviewers + ") already assigned to this paper.");
+        }
+        // ──────────────────────────────────────────────────────────
 
         Review review = Review.builder()
                 .paper(paper)
@@ -82,10 +91,6 @@ public class ReviewServiceImpl implements ReviewService {
         review.setScore(reviewData.getScore());
         review.setRecommendation(reviewData.getRecommendation());
 
-        // ── Singleton Pattern: read max score from global config ───
-        int maxScore = ConferenceAppConfig.getInstance().getMaxReviewScore();
-        int minScore = ConferenceAppConfig.getInstance().getMinReviewScore();
-        // (Chain handlers also use these values)
         // ── Chain of Responsibility Pattern ───────────────────────
         boolean pastDeadline = review.getDeadline() != null
                 && LocalDateTime.now().isAfter(review.getDeadline());
