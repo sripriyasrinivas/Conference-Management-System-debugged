@@ -3,15 +3,31 @@
 <head><meta charset="UTF-8"/><title>Register | CMS</title>
 <link rel="stylesheet" th:href="@{/css/style.css}"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+<style>
+    .package-option { border: 2px solid #ddd; padding: 1rem; margin: 0.5rem 0; border-radius: 4px; cursor: pointer; transition: all 0.3s; }
+    .package-option:hover { border-color: #007bff; background: #f0f8ff; }
+    .package-option input[type="radio"] { margin-right: 0.5rem; }
+    .workshop-list { max-height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 0.5rem; border-radius: 4px; }
+    .workshop-item { padding: 0.5rem; margin: 0.25rem 0; background: #f9f9f9; border-radius: 3px; }
+    .workshop-item input[type="checkbox"] { margin-right: 0.5rem; }
+    .error-badge { color: #dc3545; font-size: 0.9rem; margin-top: 0.25rem; }
+    .vip-badge { background: #ffc107; color: #000; padding: 0.25rem 0.5rem; border-radius: 3px; font-size: 0.85rem; margin-left: 0.5rem; }
+    .form-section { margin: 1.5rem 0; }
+</style>
 </head>
 <body>
 <th:block th:replace="~{common/fragments :: navbar}"></th:block>
 <div th:replace="~{common/fragments :: alerts}"></div>
 <main class="container main-content">
     <div class="page-header">
-        <h2><i class="fas fa-ticket-alt"></i> Register for Conference</h2>
+        <h2><i class="fas fa-ticket-alt"></i> Conference Registration</h2>
         <a th:href="@{/attendee/conferences}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back</a>
     </div>
+    
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i> Complete all steps below to register for the conference.
+    </div>
+    
     <div class="card card-narrow">
         <!-- Conference Summary -->
         <div class="conf-summary">
@@ -21,41 +37,301 @@
                 <span><i class="fas fa-calendar"></i>
                     <span th:text="${conference.startDate} + ' → ' + ${conference.endDate}"></span></span>
                 <span><i class="fas fa-users"></i>
-                    <span th:text="${conference.registrations.size()} + ' / ' + ${conference.maxAttendees}"></span>
+                    <span th:text="${confirmedCount} + ' confirmed'"></span>
+                    <span th:if="${waitlistedCount > 0}" th:text="'+ ' + ${waitlistedCount} + ' waitlisted'"></span>
                 </span>
+                <span th:if="${hasVipPackage}" class="vip-badge">✓ VIP Package Purchased</span>
             </div>
         </div>
+        
         <div class="card-body">
-            <form th:action="@{/attendee/conferences/{id}/register(id=${conference.id})}" method="post">
-                <div class="form-group">
-                    <label>Registration Type *</label>
-                    <select name="type" class="form-control" required>
-                        <option value="">Select your registration type...</option>
-                        <option th:each="t : ${types}" th:value="${t}"
-                                th:text="${t}"></option>
-                    </select>
+            <form th:action="@{/attendee/conferences/{id}/register(id=${conference.id})}" method="post" id="registrationForm">
+                
+                <!-- Hidden field to track payment confirmation -->
+                <input type="hidden" name="paymentConfirmed" id="paymentConfirmed" value="false"/>
+                
+                <!-- STEP 1: FORM VALIDATION - Personal Information -->
+                <div class="form-section">
+                    <h4><i class="fas fa-user-check"></i> Step 1: Personal Information</h4>
+                    <p class="text-muted">These details will be stored securely for the conference.</p>
+                    
+                    <div class="form-group">
+                        <label>Full Name *</label>
+                        <input type="text" name="fullName" class="form-control" placeholder="Enter your full name" required/>
+                        <small class="error-badge" th:if="${validationErrors?.fullName}" th:text="${validationErrors.fullName}"></small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Email Address *</label>
+                        <input type="email" name="email" class="form-control" placeholder="Enter your email" required/>
+                        <small class="error-badge" th:if="${validationErrors?.email}" th:text="${validationErrors.email}"></small>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>Dietary Preferences</label>
-                    <input type="text" name="dietary" class="form-control"
-                           placeholder="e.g. Vegetarian, Vegan, Gluten-free"/>
+                
+                <hr/>
+                
+                <!-- STEP 2: REGISTRATION TYPE -->
+                <div class="form-section">
+                    <h4><i class="fas fa-list"></i> Step 2: Registration Type *</h4>
+                    <div class="form-group">
+                        <select name="type" class="form-control" required>
+                            <option value="">Select your registration type...</option>
+                            <option th:each="t : ${types}" th:value="${t}" th:text="${t}"></option>
+                        </select>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>Special Requirements</label>
-                    <textarea name="special" class="form-control" rows="2"
-                              placeholder="Any accessibility needs or special requests..."></textarea>
+                
+                <hr/>
+                
+                <!-- STEP 3: PACKAGE SELECTION (VIP Check in Activity Diagram) -->
+                <div class="form-section">
+                    <h4><i class="fas fa-box"></i> Step 3: Select Your Package</h4>
+                    <p class="text-muted">Choose the package that fits your needs.</p>
+                    
+                    <div class="package-option">
+                        <input type="radio" id="pkg_basic" name="packageType" value="BASIC" checked onchange="updateWorkshopVisibility()"/>
+                        <label for="pkg_basic" style="margin: 0; cursor: pointer;">
+                            <strong>Basic Registration - FREE</strong><br/>
+                            <small>Access to main conference and general sessions</small>
+                        </label>
+                    </div>
+                    
+                    <div class="package-option" th:if="${!hasVipPackage}">
+                        <input type="radio" id="pkg_workshop" name="packageType" value="WORKSHOP_ONLY" onchange="updateWorkshopVisibility()"/>
+                        <label for="pkg_workshop" style="margin: 0; cursor: pointer;">
+                            <strong>Workshop Only - $25.00</strong><br/>
+                            <small>Access to selected workshops and materials</small>
+                        </label>
+                    </div>
+                    
+                    <div class="package-option" th:if="${!hasVipPackage}">
+                        <input type="radio" id="pkg_vip" name="packageType" value="VIP" onchange="updateWorkshopVisibility()"/>
+                        <label for="pkg_vip" style="margin: 0; cursor: pointer;">
+                            <strong>VIP Package - $50.00</strong><br/>
+                            <small>✓ All workshops included | ✓ Premium materials | ✓ Priority access</small>
+                        </label>
+                    </div>
+                    
+                    <div class="package-option" th:if="${hasVipPackage}">
+                        <input type="radio" id="pkg_vip_owned" name="packageType" value="VIP" checked disabled/>
+                        <label for="pkg_vip_owned" style="margin: 0; cursor: pointer;">
+                            <strong>VIP Package (Already Purchased)</strong><br/>
+                            <small>✓ Full access to all workshops and materials</small>
+                        </label>
+                    </div>
                 </div>
+                
+                <hr/>
+                
+                <!-- STEP 4: WORKSHOP SELECTION (Conditional - shown if not Basic) -->
+                <div class="form-section" id="workshopSection" style="display: none;">
+                    <h4><i class="fas fa-graduation-cap"></i> Step 4: Select Workshops</h4>
+                    <p class="text-muted">Choose the workshops you want to attend.</p>
+                    
+                    <div th:if="${#lists.isEmpty(workshops)}" class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> No workshops available for this conference.
+                    </div>
+                    
+                    <div th:if="${!#lists.isEmpty(workshops)}" class="workshop-list">
+                        <div class="workshop-item" th:each="workshop : ${workshops}">
+                            <input type="checkbox" name="selectedWorkshops" th:value="${workshop.id}" th:id="'ws_' + ${workshop.id}"/>
+                            <label th:for="'ws_' + ${workshop.id}" style="margin: 0; cursor: pointer;">
+                                <strong th:text="${workshop.title}"></strong><br/>
+                                <small th:text="${workshop.description}"></small>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <hr/>
+                
+                <!-- STEP 5: PREFERENCES -->
+                <div class="form-section">
+                    <h4><i class="fas fa-cog"></i> Step 5: Additional Preferences</h4>
+                    
+                    <div class="form-group">
+                        <label>Dietary Preferences</label>
+                        <input type="text" name="dietary" class="form-control"
+                               placeholder="e.g. Vegetarian, Vegan, Gluten-free"/>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Special Requirements</label>
+                        <textarea name="special" class="form-control" rows="2"
+                                  placeholder="Any accessibility needs or special requests..."></textarea>
+                    </div>
+                </div>
+                
+                <!-- Capacity Status Warning -->
+                <div th:unless="${hasAvailableSpace}" class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i> 
+                    <strong>Conference at Capacity:</strong> Your registration will be added to the waitlist. 
+                    You will be automatically promoted to confirmed status if a spot becomes available.
+                </div>
+                
                 <div class="form-actions">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-check"></i> Confirm Registration
+                    <button type="button" class="btn btn-primary" onclick="handleRegistrationSubmit()">
+                        <i class="fas fa-check"></i> Complete Registration
                     </button>
                     <a th:href="@{/attendee/conferences}" class="btn btn-secondary">Cancel</a>
                 </div>
             </form>
         </div>
     </div>
+    
+    <!-- Information Panel -->
+    <div class="card card-narrow">
+        <div class="card-body">
+            <h5><i class="fas fa-shield-alt"></i> Your Data Security</h5>
+            <ul>
+                <li>Your personal information is stored securely</li>
+                <li>Your preferences are protected with industry-standard encryption</li>
+                <li>Attendee details are never shared with third parties</li>
+                <li>You can update your preferences anytime</li>
+            </ul>
+        </div>
+    </div>
 </main>
+
+<!-- Payment Confirmation Modal -->
+<div id="paymentModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.4);">
+    <div class="modal-content" style="background-color: #fefefe; margin: 10% auto; padding: 2rem; border: 1px solid #888; border-radius: 8px; width: 90%; max-width: 500px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
+        <div style="text-align: center; margin-bottom: 1.5rem;">
+            <i class="fas fa-credit-card" style="font-size: 3rem; color: #007bff; margin-bottom: 1rem;"></i>
+            <h3 style="margin: 0.5rem 0; color: #333;">Payment Confirmation</h3>
+            <p style="color: #666; margin: 0.5rem 0;">Please confirm your payment to complete registration</p>
+        </div>
+        
+        <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 6px; margin-bottom: 1.5rem; border-left: 4px solid #007bff;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                <span style="color: #666;">Package:</span>
+                <strong id="paymentPackageName" style="color: #333;"></strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                <span style="color: #666;">Amount:</span>
+                <strong id="paymentAmount" style="color: #28a745; font-size: 1.2rem;"></strong>
+            </div>
+            <hr style="margin: 0.75rem 0; border: none; border-top: 1px solid #ddd;"/>
+            <div style="display: flex; justify-content: space-between;">
+                <span style="color: #666; font-weight: bold;">Total:</span>
+                <span id="paymentTotal" style="font-size: 1.5rem; color: #007bff; font-weight: bold;"></span>
+            </div>
+        </div>
+        
+        <p style="color: #666; font-size: 0.95rem; text-align: center; margin-bottom: 1.5rem;">
+            <i class="fas fa-lock"></i> Your payment information is secure and encrypted.
+        </p>
+        
+        <div style="display: flex; gap: 1rem; justify-content: center;">
+            <button type="button" onclick="cancelPayment()" class="btn btn-secondary" style="flex: 1; padding: 0.75rem;">
+                <i class="fas fa-times"></i> No, Cancel
+            </button>
+            <button type="button" onclick="confirmPayment()" class="btn btn-success" style="flex: 1; padding: 0.75rem; background-color: #28a745; border-color: #28a745;">
+                <i class="fas fa-check"></i> Yes, Pay
+            </button>
+        </div>
+    </div>
+</div>
+
 <footer class="footer"><p>&copy; 2026 Conference Management System</p></footer>
+
 <script th:src="@{/js/app.js}"></script>
+<script>
+// Payment packages and their prices
+const packagePrices = {
+    'BASIC': { name: 'Basic Registration', price: '$0.00' },
+    'WORKSHOP_ONLY': { name: 'Workshop Only', price: '$25.00' },
+    'VIP': { name: 'VIP Package', price: '$50.00' }
+};
+
+function updateWorkshopVisibility() {
+    const basicRadio = document.getElementById('pkg_basic');
+    const workshopRadio = document.getElementById('pkg_workshop');
+    const vipRadio = document.getElementById('pkg_vip');
+    const vipOwnedRadio = document.getElementById('pkg_vip_owned');
+    const workshopSection = document.getElementById('workshopSection');
+    
+    const isWorkshopSelected = workshopRadio && workshopRadio.checked;
+    const isVipSelected = (vipRadio && vipRadio.checked) || (vipOwnedRadio && vipOwnedRadio.checked);
+    
+    if (isWorkshopSelected || isVipSelected) {
+        workshopSection.style.display = 'block';
+    } else {
+        workshopSection.style.display = 'none';
+        document.querySelectorAll('input[name="selectedWorkshops"]').forEach(cb => cb.checked = false);
+    }
+}
+
+function getSelectedPackage() {
+    const packageRadios = document.querySelectorAll('input[name="packageType"]');
+    let selectedPackage = 'BASIC';
+    packageRadios.forEach(radio => {
+        if (radio.checked) {
+            selectedPackage = radio.value;
+        }
+    });
+    return selectedPackage;
+}
+
+function handleRegistrationSubmit() {
+    const selectedPackage = getSelectedPackage();
+    const paymentConfirmedField = document.getElementById('paymentConfirmed');
+    
+    // If BASIC package (free), submit directly
+    if (selectedPackage === 'BASIC') {
+        paymentConfirmedField.value = 'true';
+        document.getElementById('registrationForm').submit();
+        return;
+    }
+    
+    // For paid packages, show payment modal
+    showPaymentModal(selectedPackage);
+}
+
+function showPaymentModal(packageType) {
+    const packageInfo = packagePrices[packageType];
+    if (!packageInfo) return;
+    
+    // Update modal with package details
+    document.getElementById('paymentPackageName').textContent = packageInfo.name;
+    document.getElementById('paymentAmount').textContent = packageInfo.price;
+    document.getElementById('paymentTotal').textContent = packageInfo.price;
+    
+    // Show the modal
+    document.getElementById('paymentModal').style.display = 'block';
+}
+
+function confirmPayment() {
+    // Set payment confirmation flag
+    document.getElementById('paymentConfirmed').value = 'true';
+    
+    // Close modal
+    document.getElementById('paymentModal').style.display = 'none';
+    
+    // Submit the form
+    document.getElementById('registrationForm').submit();
+}
+
+function cancelPayment() {
+    // Reset payment confirmation flag
+    document.getElementById('paymentConfirmed').value = 'false';
+    
+    // Close modal
+    document.getElementById('paymentModal').style.display = 'none';
+    
+    // Show warning message
+    alert('Payment cancelled. You cannot register without completing the payment.');
+}
+
+// Close modal when clicking outside of it
+window.onclick = function(event) {
+    const modal = document.getElementById('paymentModal');
+    if (event.target == modal) {
+        cancelPayment();
+    }
+}
+
+document.addEventListener('DOMContentLoaded', updateWorkshopVisibility);
+</script>
 </body>
 </html>

@@ -32,27 +32,36 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label>Start Date</label>
-                            <input type="date" name="startDate" class="form-control"/>
+                            <input type="date" id="confStartDate" name="startDate" class="form-control"
+                                   onchange="validateConferenceDates()"/>
                         </div>
                         <div class="form-group">
                             <label>End Date</label>
-                            <input type="date" name="endDate" class="form-control"/>
+                            <input type="date" id="confEndDate" name="endDate" class="form-control"
+                                   onchange="validateConferenceDates()"/>
+                            <small class="text-muted">Must be after start date</small>
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label>Submission Deadline</label>
-                            <input type="date" name="submissionDeadline" class="form-control"/>
+                            <input type="date" id="submissionDeadline" name="submissionDeadline" class="form-control"
+                                   onchange="validateConferenceDeadlines()"/>
+                            <small class="text-muted">Before start date</small>
                         </div>
                         <div class="form-group">
                             <label>Review Deadline</label>
-                            <input type="date" name="reviewDeadline" class="form-control"/>
+                            <input type="date" id="reviewDeadline" name="reviewDeadline" class="form-control"
+                                   onchange="validateConferenceDeadlines()"/>
+                            <small class="text-muted">After submission, before start</small>
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label>Notification Date</label>
-                            <input type="date" name="notificationDate" class="form-control"/>
+                            <input type="date" id="notificationDate" name="notificationDate" class="form-control"
+                                   onchange="validateConferenceDeadlines()"/>
+                            <small class="text-muted">After review, before start</small>
                         </div>
                         <div class="form-group">
                             <label>Max Attendees</label>
@@ -130,5 +139,121 @@
 </main>
 <footer class="footer"><p>&copy; 2026 Conference Management System</p></footer>
 <script th:src="@{/js/app.js}"></script>
+<script>
+function validateConferenceDates() {
+    const startDateInput = document.getElementById('confStartDate');
+    const endDateInput = document.getElementById('confEndDate');
+    
+    if (startDateInput.value && endDateInput.value) {
+        if (startDateInput.value >= endDateInput.value) {
+            endDateInput.setCustomValidity('End date must be after start date');
+            endDateInput.style.borderColor = 'red';
+        } else {
+            endDateInput.setCustomValidity('');
+            endDateInput.style.borderColor = '';
+        }
+    }
+    validateConferenceDeadlines();
+}
+
+function validateConferenceDeadlines() {
+    const startDate = document.getElementById('confStartDate')?.value;
+    const submissionDL = document.getElementById('submissionDeadline')?.value;
+    const reviewDL = document.getElementById('reviewDeadline')?.value;
+    const notificationDate = document.getElementById('notificationDate')?.value;
+    
+    const submissionInput = document.getElementById('submissionDeadline');
+    const reviewInput = document.getElementById('reviewDeadline');
+    const notificationInput = document.getElementById('notificationDate');
+    
+    // Reset all styles
+    [submissionInput, reviewInput, notificationInput].forEach(el => {
+        if (el) {
+            el.setCustomValidity('');
+            el.style.borderColor = '';
+        }
+    });
+    
+    // Submission deadline must be before start date
+    if (submissionDL && startDate && submissionDL >= startDate) {
+        submissionInput.setCustomValidity('Submission deadline must be before conference start date');
+        submissionInput.style.borderColor = 'red';
+    }
+    
+    // Review deadline must be after submission deadline
+    if (reviewDL && submissionDL && reviewDL <= submissionDL) {
+        reviewInput.setCustomValidity('Review deadline must be after submission deadline');
+        reviewInput.style.borderColor = 'red';
+    }
+    
+    // Review deadline must be before start date
+    if (reviewDL && startDate && reviewDL >= startDate) {
+        reviewInput.setCustomValidity('Review deadline must be before conference start date');
+        reviewInput.style.borderColor = 'red';
+    }
+    
+    // Notification date must be after review deadline
+    if (notificationDate && reviewDL && notificationDate <= reviewDL) {
+        notificationInput.setCustomValidity('Notification date must be after review deadline');
+        notificationInput.style.borderColor = 'red';
+    }
+    
+    // Notification date must be before start date
+    if (notificationDate && startDate && notificationDate >= startDate) {
+        notificationInput.setCustomValidity('Notification date must be before conference start date');
+        notificationInput.style.borderColor = 'red';
+    }
+    validateConferenceDeadlines();
+}
+
+function validateConferenceDeadlines() {
+    const startDate = document.getElementById('confStartDate')?.value;
+    const submissionDL = document.getElementById('submissionDeadline')?.value;
+    const reviewDL = document.getElementById('reviewDeadline')?.value;
+    const notificationDate = document.getElementById('notificationDate')?.value;
+    
+    const submissionInput = document.getElementById('submissionDeadline');
+    const reviewInput = document.getElementById('reviewDeadline');
+    const notificationInput = document.getElementById('notificationDate');
+    
+    // Reset all styles
+    [submissionInput, reviewInput, notificationInput].forEach(el => {
+        if (el) {
+            el.setCustomValidity('');
+            el.style.borderColor = '';
+        }
+    });
+    
+    // Submission deadline must be before start date
+    if (submissionDL && startDate && submissionDL >= startDate) {
+        submissionInput.setCustomValidity('Submission deadline must be before conference start date');
+        submissionInput.style.borderColor = 'red';
+    }
+    
+    // Review deadline must be after submission deadline
+    if (reviewDL && submissionDL && reviewDL <= submissionDL) {
+        reviewInput.setCustomValidity('Review deadline must be after submission deadline');
+        reviewInput.style.borderColor = 'red';
+    }
+    
+    // Review deadline must be before start date
+    if (reviewDL && startDate && reviewDL >= startDate) {
+        reviewInput.setCustomValidity('Review deadline must be before conference start date');
+        reviewInput.style.borderColor = 'red';
+    }
+    
+    // Notification date must be after review deadline
+    if (notificationDate && reviewDL && notificationDate <= reviewDL) {
+        notificationInput.setCustomValidity('Notification date must be after review deadline');
+        notificationInput.style.borderColor = 'red';
+    }
+    
+    // Notification date must be before start date
+    if (notificationDate && startDate && notificationDate >= startDate) {
+        notificationInput.setCustomValidity('Notification date must be before conference start date');
+        notificationInput.style.borderColor = 'red';
+    }
+}
+</script>
 </body>
 </html>

@@ -1,5 +1,6 @@
 package com.cms.service;
 
+import com.cms.model.Conference;
 import com.cms.model.Session;
 import com.cms.model.User;
 import java.time.LocalDate;
@@ -13,8 +14,10 @@ public interface SessionService {
     Optional<Session> findById(Long id);
     List<Session> findAll();
     List<Session> findBySpeaker(User speaker);
+    List<Session> findByConference(Conference conference);
     List<Session> findByDate(LocalDate date);
     Map<LocalDate, List<Session>> getScheduleGroupedByDate();
+    Map<LocalDate, List<Session>> getScheduleGroupedByDateForConference(Conference conference);
     List<String> detectConflicts(Session session);
     void deleteSession(Long id);
     List<LocalDate> getAllSessionDates();

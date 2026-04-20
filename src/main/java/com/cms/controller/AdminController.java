@@ -219,6 +219,7 @@ public class AdminController {
         model.addAttribute("newSession",     new Session());
         model.addAttribute("speakers",       userService.findByRole(User.Role.SPEAKER));
         model.addAttribute("acceptedPapers", paperService.findByStatus(Paper.Status.ACCEPTED));
+        model.addAttribute("conferences",    conferenceService.findAll());
         return "admin/sessions";
     }
 
@@ -226,9 +227,11 @@ public class AdminController {
     public String createSession(@ModelAttribute Session session,
                                  @RequestParam(required = false) Long speakerId,
                                  @RequestParam(required = false) Long paperId,
+                                 @RequestParam(required = false) Long conferenceId,
                                  RedirectAttributes ra) {
         if (speakerId != null) userService.findById(speakerId).ifPresent(session::setSpeaker);
         if (paperId   != null) paperService.findById(paperId).ifPresent(session::setPaper);
+        if (conferenceId != null) conferenceService.findById(conferenceId).ifPresent(session::setConference);
         try {
             sessionService.createSession(session);
             ra.addFlashAttribute("success", "Session created successfully.");
